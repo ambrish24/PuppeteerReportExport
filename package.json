@@ -10,7 +10,10 @@
   "author": "Aakash Garg",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.19.2",
     "express": "^4.17.1",
+    "node-cron": "^2.0.3",
+    "pdf-lib": "^1.10.0",
     "puppeteer": "^5.2.1"
   }
 }
