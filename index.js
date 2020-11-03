@@ -4391,7 +4391,7 @@ async function getPdf(reportObj) {
         dataMap: dataMap
     });
 
-    console.log('Data is ======>  '+data);
+    //console.log('Data is ======>  '+data);
 
     //var buff = new Buffer.from(Object.values(data)[0], 'base64');
     //var bytes = base64ToArrayBuffer(Object.values(data)[0]);
@@ -4598,7 +4598,9 @@ async function getPdf(reportObj) {
     console.log('writing final PDF to File - Report.pdf');
     const pdfBytes = await PDFDocument.load(fs.readFileSync('Report.pdf'));
 
-    return pdf;
+    return Buffer.from(await pdfDoc.save())
+
+    //return pdf;
 }
 
 var generatePdf = (docDefinition, callback) => {
