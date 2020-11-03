@@ -5,6 +5,7 @@ const pdfMake = require("pdfmake/build/pdfmake");
 const pdfFonts = require("pdfmake/build/vfs_fonts");
 const pdfMakePrinter = require("pdfmake/src/printer");
 const htmlToPdfMake = require("html-to-pdfmake");
+const { PDFDocument } = require('pdf-lib');
 const { JSDOM } = require("jsdom");
 const { window } = new JSDOM("");
 const fs = require('fs');
@@ -4324,7 +4325,7 @@ app.get("/pdf/write", (req, res) => {
     }
     var url =
         "http://localhost:8080/blueplanet-core-showcase-rest/core/export/sql/by/filter?type=pdf&zipped=false";
-    console.log('pdf write called');
+    console.log('pdf called');
     //http.post(url, body).
     axios({
         method: 'post',
@@ -4340,6 +4341,8 @@ app.get("/pdf/write", (req, res) => {
         res.send("");
     });
 });
+
+
 async function getPdf(reportObj) {
     const browser = await puppeteer.launch({
         headless: true,
@@ -4347,7 +4350,7 @@ async function getPdf(reportObj) {
 
     });
     const page = await browser.newPage();
-    page.setViewport({width: 800, height: 800, deviceScaleFactor: 2});
+    // page.setViewport({width: 800, height: 800, deviceScaleFactor: 2});
     await page.goto("http://localhost:4000/blueplanet-core-showcase/login", {
         waitUntil: "networkidle0"
     });
@@ -4370,6 +4373,30 @@ async function getPdf(reportObj) {
         "http://localhost:4000/blueplanet-core-showcase/s;id=NorLzglzF/page;id=root-opc;type=fc-manage-reports-demo;tab=hMvCj3YWRR;data=%7B%22fcIcon%22:%22mdi-view-dashboard%22,%22fcHeader%22:%22Manage%20Reports%22%7D",
         { waitUntil: "domcontentloaded" }
     );
+    var dataMap = new Map();
+    const data = await page.evaluate(async function(fields) {
+        return await  new Promise((resolve, reject) => {
+            // let exportEvent = new CustomEvent('reportExport');
+            // document.createEvent(event);
+            var data = fields;
+            document.addEventListener('reportExport', (obj) => {
+                data.dataMap[obj.detail.id] = obj.detail.blob;
+                if (Object.keys(data.dataMap).length === data.reportObj.main.widgets.length) {
+                    resolve(data.dataMap);
+                }
+            })
+        });
+    }, {
+        reportObj: reportObj,
+        dataMap: dataMap
+    });
+
+    console.log('Data is ======>  '+data);
+
+    //var buff = new Buffer.from(Object.values(data)[0], 'base64');
+    //var bytes = base64ToArrayBuffer(Object.values(data)[0]);
+
+    const gridPdf = await PDFDocument.load(Object.values(data)[0]);
 //   const treeItem1 = await page.$(
 //     "fc-report-tree fc-inventory-tree > p-tree > div > div > ul > p-treenode:nth-child(3) > li > div > span.ui-tree-toggler.pi.ui-unselectable-text.ng-star-inserted.pi-caret-right"
 //   );
@@ -4386,6 +4413,8 @@ async function getPdf(reportObj) {
     console.log('Waiting for fc-report');
     await page.waitForSelector('.fc-report');
     console.log('fc-report found');
+    console.log('printing map');
+    //console.log(data);
     await page.addStyleTag({
         content: `
           fc-widget-container {
@@ -4428,16 +4457,24 @@ async function getPdf(reportObj) {
            .widget-icons {
                display: none !important;
            }
+           .container {
+               display: table !important;
+           }
            @media print {
-            //    .fc-widget.card {
-            //       break-inside: avoid;
-            //    }
-            //    .fc-widget-menu {
-            //        break-after: avoid;
-            //    }
-            //    fc-widget-container {
-            //        break-inside: avoid;
-            //    }
+            body {
+                page-break-inside: avoid;
+            }
+            .container {
+                position:relative;
+                page-break-inside: avoid;
+            }
+            fc-widget-container {
+                position: relative;
+                page-break-inside: avoid;
+            }
+            img {
+                page-break-inside: avoid;
+            }
            }
       `
     });
@@ -4486,8 +4523,10 @@ async function getPdf(reportObj) {
         // canvases.forEach((canvas) => {
         //   var img = document.createElement("img");
         //   img.src = canvas.toDataURL();
-        //   img.width = canvas.width;
-        //   img.height = canvas.height;
+        // //   img.width = canvas.width;
+        // //   img.height = canvas.height;
+        //   img.style.width = "auto";
+        //   img.style.height = "auto";
         //   canvUrl = img.src
         //   img.style.zIndex = 1000;
         //   canvas.parentElement.replaceChild(img, canvas);
@@ -4509,13 +4548,24 @@ async function getPdf(reportObj) {
 </div>
 `
     await dashboardDiv.evaluate((node) => {
-        node.querySelector('.reportHeader').style.display = 'none';
-        node.querySelector('.reportFooter').style.display = 'none';
         const dashboards = node.querySelectorAll('.report fc-dashboard fc-widget-container');
+        const headM = node.querySelector('header').offsetHeight;
+        const footerM = node.querySelector('footer').offsetHeight;
         document.body.innerHTML = '';
         dashboards.forEach((dash) => {
             document.body.appendChild(dash);
+            const oldHeight = dash.offsetHeight;
+            // if (dash.offsetHeight >= 1056-headM-footerM - 50) {
+            //     console.log(1056-headM-footerM);
+            //     dash.style.height = (1056-headM-footerM)+'px';
+            //     const canvas = dash.querySelector('canvas');
+            //     if(canvas) {
+            //         canvas.style.height = (canvas.offsetHeight - (oldHeight - dash.offsetHeight))+'px';
+            //     }
+            // }
         })
+        node.querySelector('.reportHeader').style.display = 'none';
+        node.querySelector('.reportFooter').style.display = 'none';
         //document.body.appendChild(dashboards)
     });
 // await page.waitFor(5000);
@@ -4524,6 +4574,30 @@ async function getPdf(reportObj) {
     const pdf = await page.pdf({ format: "A3", printBackground: true, displayHeaderFooter: true ,headerTemplate: headerTemplate, footerTemplate: footerTemplate, margin: {top: headerHeight, bottom: footerHeight, left: headerHtmlData[3], right: headerHtmlData[3]} }); // serialized HTML of page DOM.
 //  const pdf = await page.pdf({ format: "A4", printBackground: true}); // serialized HTML of page DOM.
     await browser.close();
+    const pdfDoc = await PDFDocument.create();
+    const chartPdf = await PDFDocument.load(pdf);
+
+    // Add Chart pages
+    const chartPages = await pdfDoc.copyPages(chartPdf, chartPdf.getPageIndices());
+    for (const page of chartPages) {
+        pdfDoc.addPage(page);
+    }
+    console.log('chart pdf generated');
+    fs.writeFileSync('Chart.pdf', await pdfDoc.save());
+
+    // Add Grid Pages
+    const gridPages = await pdfDoc.copyPages(gridPdf, gridPdf.getPageIndices());
+    for (const page of gridPages) {
+        pdfDoc.addPage(page);
+    }
+    console.log('grid pdf generated');
+    fs.writeFileSync('Grid.pdf', await pdfDoc.save());
+
+    // Write the PDF to a file
+    fs.writeFileSync('Report.pdf', await pdfDoc.save());
+    console.log('writing final PDF to File - Report.pdf');
+    const pdfBytes = await PDFDocument.load(fs.readFileSync('Report.pdf'));
+
     return pdf;
 }
 
@@ -4566,4 +4640,3 @@ var generatePdf = (docDefinition, callback) => {
 app.listen(8000, () => {
     console.log("Example app listening on port 8000!");
 });
-
