@@ -5,7 +5,6 @@ const pdfMake = require("pdfmake/build/pdfmake");
 const pdfFonts = require("pdfmake/build/vfs_fonts");
 const pdfMakePrinter = require("pdfmake/src/printer");
 const htmlToPdfMake = require("html-to-pdfmake");
-const { PDFDocument } = require('pdf-lib');
 const { JSDOM } = require("jsdom");
 const { window } = new JSDOM("");
 const fs = require('fs');
@@ -4341,8 +4340,6 @@ app.get("/pdf/write", (req, res) => {
         res.send("");
     });
 });
-
-
 async function getPdf(reportObj) {
     const browser = await puppeteer.launch({
         headless: true,
@@ -4373,7 +4370,7 @@ async function getPdf(reportObj) {
         "http://localhost:4000/blueplanet-core-showcase/s;id=NorLzglzF/page;id=root-opc;type=fc-manage-reports-demo;tab=hMvCj3YWRR;data=%7B%22fcIcon%22:%22mdi-view-dashboard%22,%22fcHeader%22:%22Manage%20Reports%22%7D",
         { waitUntil: "domcontentloaded" }
     );
-    var dataMap = new Map();
+    /*var dataMap = new Map();
     const data = await page.evaluate(async function(fields) {
         return await  new Promise((resolve, reject) => {
             // let exportEvent = new CustomEvent('reportExport');
@@ -4389,14 +4386,7 @@ async function getPdf(reportObj) {
     }, {
         reportObj: reportObj,
         dataMap: dataMap
-    });
-
-    //console.log('Data is ======>  '+data);
-
-    //var buff = new Buffer.from(Object.values(data)[0], 'base64');
-    //var bytes = base64ToArrayBuffer(Object.values(data)[0]);
-
-    const gridPdf = await PDFDocument.load(Object.values(data)[0]);
+    });*/
 //   const treeItem1 = await page.$(
 //     "fc-report-tree fc-inventory-tree > p-tree > div > div > ul > p-treenode:nth-child(3) > li > div > span.ui-tree-toggler.pi.ui-unselectable-text.ng-star-inserted.pi-caret-right"
 //   );
@@ -4571,36 +4561,10 @@ async function getPdf(reportObj) {
 // await page.waitFor(5000);
 // let html = await page.content();
 // return html;
-    const pdf = await page.pdf({ format: "A3", printBackground: true, displayHeaderFooter: true ,headerTemplate: headerTemplate, footerTemplate: footerTemplate, margin: {top: headerHeight, bottom: footerHeight, left: headerHtmlData[3], right: headerHtmlData[3]} }); // serialized HTML of page DOM.
+    const pdf = await page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true ,headerTemplate: headerTemplate, footerTemplate: footerTemplate, margin: {top: headerHeight, bottom: footerHeight, left: headerHtmlData[3], right: headerHtmlData[3]} }); // serialized HTML of page DOM.
 //  const pdf = await page.pdf({ format: "A4", printBackground: true}); // serialized HTML of page DOM.
     await browser.close();
-    const pdfDoc = await PDFDocument.create();
-    const chartPdf = await PDFDocument.load(pdf);
-
-    // Add Chart pages
-    const chartPages = await pdfDoc.copyPages(chartPdf, chartPdf.getPageIndices());
-    for (const page of chartPages) {
-        pdfDoc.addPage(page);
-    }
-    console.log('chart pdf generated');
-    fs.writeFileSync('Chart.pdf', await pdfDoc.save());
-
-    // Add Grid Pages
-    const gridPages = await pdfDoc.copyPages(gridPdf, gridPdf.getPageIndices());
-    for (const page of gridPages) {
-        pdfDoc.addPage(page);
-    }
-    console.log('grid pdf generated');
-    fs.writeFileSync('Grid.pdf', await pdfDoc.save());
-
-    // Write the PDF to a file
-    fs.writeFileSync('Report.pdf', await pdfDoc.save());
-    console.log('writing final PDF to File - Report.pdf');
-    const pdfBytes = await PDFDocument.load(fs.readFileSync('Report.pdf'));
-
-    return Buffer.from(await pdfDoc.save())
-
-    //return pdf;
+    return pdf;
 }
 
 var generatePdf = (docDefinition, callback) => {
