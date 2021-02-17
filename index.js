@@ -27,7 +27,7 @@ app.options("*", function(req,res) {
 })
 app.post("/", async (req, res) => {
     console.log("getting pdf");
-    const resp = await getPdf(req.body);
+    const resp = await getPdf2(req.body);
     console.log("sending pdf");
     res.set({ "Content-Type": "application/pdf" });
     res.header("Access-Control-Allow-Origin", "http://localhost:4000");
@@ -4563,6 +4563,20 @@ async function getPdf(reportObj) {
 // return html;
     const pdf = await page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true ,headerTemplate: headerTemplate, footerTemplate: footerTemplate, margin: {top: headerHeight, bottom: footerHeight, left: headerHtmlData[3], right: headerHtmlData[3]} }); // serialized HTML of page DOM.
 //  const pdf = await page.pdf({ format: "A4", printBackground: true}); // serialized HTML of page DOM.
+    await browser.close();
+    return pdf;
+}
+
+async function getPdf2(reportObj) {
+    const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        , headless: true // printo to pdf only works in headless mode currently
+    });
+    const page = await browser.newPage();
+    await page.goto('https://blog.risingstack.com', {waitUntil: 'networkidle0'});
+    const pdf = await page.pdf({ format: 'A4' });
+
+
     await browser.close();
     return pdf;
 }
